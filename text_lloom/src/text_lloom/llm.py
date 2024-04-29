@@ -21,8 +21,15 @@ from openai import OpenAI, AsyncOpenAI
 
 if "OPENAI_API_KEY" not in os.environ:
     raise Exception("API key not found. Please set the OPENAI_API_KEY environment variable by running: `os.environ['OPENAI_API_KEY'] = 'your_key'`")
-client = AsyncOpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),
+
+# Anthropic setup =============================
+from anthropic import AsyncAnthropic
+
+if "ANTHROPIC_API_KEY" not in os.environ:
+    raise Exception("API key not found. Please set the OPENAI_API_KEY environment variable by running: `os.environ['OPENAI_API_KEY'] = 'your_key'`")
+
+client = AsyncAnthropic(
+    api_key=os.environ.get("ANTHROPIC_API_KEY"),
 )
 embed_client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
@@ -38,6 +45,9 @@ RATE_LIMITS = {
     "gpt-4": (20, 10), # = 20*6 = 120 rpm
     "gpt-4-turbo-preview": (20, 10), # = 20*6 = 120 rpm
     "gpt-4-turbo": (20, 10), # = 20*6 = 120 rpm
+    "claude-3-haiku-20240307": (300, 10),
+    "claude-3-sonnet-20240229": (300, 10),
+    "claude-3-opus-20240229": (300, 10),
 }
 
 CONTEXT_WINDOW = {
@@ -47,6 +57,9 @@ CONTEXT_WINDOW = {
     "gpt-4": 8192, 
     "gpt-4-turbo-preview": 128000,  # Max 4096 output tokens
     "gpt-4-turbo": 128000,  # Max 4096 output tokens
+    "claude-3-haiku-20240307": 200000,
+    "claude-3-sonnet-20240229": 200000,
+    "claude-3-opus-20240229": 200000,
 }
 
 COSTS = {
@@ -55,6 +68,9 @@ COSTS = {
     "gpt-4": [0.03/1000, 0.06/1000],
     "gpt-4-turbo-preview": [0.01/1000, 0.03/1000],
     "gpt-4-turbo": [0.01/1000, 0.03/1000],
+    "claude-3-haiku-20240307": [0.01/1000, 0.03/1000],
+    "claude-3-sonnet-20240229": [0.01/1000, 0.03/1000],
+    "claude-3-opus-20240229": [0.01/1000, 0.03/1000],
 }
 
 EMBED_COSTS = {
@@ -64,6 +80,9 @@ EMBED_COSTS = {
 }
 
 def get_token_estimate(text, model_name):
+    if "claude" in model_name:
+        return 1000
+
     # Fetch the number of tokens used by a prompt
     encoding = tiktoken.encoding_for_model(model_name)
     tokens = encoding.encode(text)
@@ -76,6 +95,8 @@ def get_token_estimate_list(text_list, model_name):
     return np.sum(token_list)
 
 def truncate_text_tokens(text, model_name, max_tokens):
+    if "claude" in model_name:
+        return text, 10000
     # Truncate a prompt to fit within a maximum number of tokens
     encoding = tiktoken.encoding_for_model(model_name)
     tokens = encoding.encode(text)
@@ -148,11 +169,12 @@ def retry_with_exponential_backoff(
 async def base_api_wrapper(cur_prompt, model_name, temperature):
     # Wrapper for calling the base OpenAI API
     cur_prompt = truncate_prompt(cur_prompt, model_name, out_token_alloc=1500)
-    res = await client.chat.completions.create(
+    res = await client.messages.create(
         model=model_name,
+        max_tokens=4096,
+        system=SYS_TEMPLATE,
         temperature=temperature,
         messages=[
-            {"role": "system", "content": SYS_TEMPLATE},
             {"role": "user", "content": cur_prompt},
         ]
     )
@@ -187,7 +209,7 @@ async def multi_query_gpt(model_name, prompt_template, arg_dict, batch_num=None,
 
 def get_res_str(res):
     # Fetch the response string OpenAI response JSON
-    return res.choices[0].message.content
+    return res.content[0].text
 
 def process_results(results):
     # Extract just the text generations from response JSONs

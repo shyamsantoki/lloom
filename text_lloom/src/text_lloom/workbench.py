@@ -85,6 +85,10 @@ class lloom:
         # Check for API key
         if "OPENAI_API_KEY" not in os.environ:
             raise Exception("API key not found. Please set the OPENAI_API_KEY environment variable by running: `os.environ['OPENAI_API_KEY'] = 'your_key'`")
+
+        # Check for API key
+        if "ANTHROPIC_API_KEY" not in os.environ:
+            raise Exception("API key not found. Please set the ANTHROPIC_API_KEY environment variable by running: `os.environ['ANTHROPIC_API_KEY'] = 'your_key'`")
     
     # Preprocesses input dataframe
     def preprocess_df(self, df):
