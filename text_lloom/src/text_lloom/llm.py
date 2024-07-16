@@ -21,8 +21,12 @@ from openai import OpenAI, AsyncOpenAI
 
 if "OPENAI_API_KEY" not in os.environ:
     raise Exception("API key not found. Please set the OPENAI_API_KEY environment variable by running: `os.environ['OPENAI_API_KEY'] = 'your_key'`")
+if "OR_API_KEY" not in os.environ:
+    raise Exception("API key not found. Please set the OR_API_KEY environment variable by running: `os.environ['OR_API_KEY'] = 'your_key'`")
+
 client = AsyncOpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),
+    api_key=os.environ.get("OR_API_KEY"),
+    base_url=os.environ.get("OR_BASE_URL")
 )
 embed_client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
